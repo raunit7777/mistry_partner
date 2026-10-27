@@ -1,0 +1,653 @@
+//package com.fc.mishtry_partner
+//
+//import android.annotation.SuppressLint
+//import android.app.Activity
+//import android.app.KeyguardManager
+//import android.content.BroadcastReceiver
+//import android.content.Context
+//import android.content.Intent
+//import android.content.IntentFilter
+//import android.graphics.Color
+//import android.graphics.Typeface
+//import android.graphics.drawable.GradientDrawable
+//import android.os.Build
+//import android.os.Bundle
+//import android.os.Handler
+//import android.os.Looper
+//import android.util.Log
+//import android.view.Gravity
+//import android.view.MotionEvent
+//import android.view.View
+//import android.view.WindowManager
+//import android.widget.FrameLayout
+//import android.widget.ImageView
+//import android.widget.LinearLayout
+//import android.widget.TextView
+//
+//class IncomingOrderLockScreenActivity : Activity() {
+//    private val tag = "LockScreenActivity"
+//    private var removeReceiver: BroadcastReceiver? = null
+//
+//    @SuppressLint("ClickableViewAccessibility")
+//    override fun onCreate(savedInstanceState: Bundle?) {
+//        super.onCreate(savedInstanceState)
+//
+//        // Ensure activity shows over lockscreen
+//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+//            setShowWhenLocked(true)
+//            setTurnScreenOn(true)
+//        } else {
+//            @Suppress("DEPRECATION")
+//            window.addFlags(
+//                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+//                        WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+//                        WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+//            )
+//        }
+//
+//        removeReceiver = object : BroadcastReceiver() {
+//            override fun onReceive(context: Context, intent: Intent) {
+//                Log.d(tag, "Received remove UI broadcast")
+//                finish()
+//            }
+//        }
+//        val filter = IntentFilter(IncomingOrderFirebaseService.ACTION_REMOVE_INCOMING_ORDER_UI)
+//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+//            registerReceiver(removeReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+//        } else {
+//            @Suppress("UnspecifiedRegisterReceiverFlag")
+//            registerReceiver(removeReceiver, filter)
+//        }
+//
+//        IncomingOrderNotification.cancel(this)
+//
+//        val orderId = intent.getStringExtra(RapidoIncomingOrderOverlayService.EXTRA_ORDER_ID) ?: ""
+//        val userId = intent.getStringExtra("user_id") ?: ""
+//        val pickupAddress = intent.getStringExtra("pickup_address") ?: "N/A"
+//        val dropAddress = intent.getStringExtra("drop_address") ?: "N/A"
+//        val pickupDistanceKm = intent.getStringExtra("pickup_distance_km") ?: "N/A"
+//        val rideDistance = intent.getStringExtra("distance_km") ?: "0.0"
+//        val amount = intent.getStringExtra("amount") ?: ""
+//        val panel = intent.getStringExtra("panel") ?: "driver"
+//
+//        val root = FrameLayout(this).apply {
+//            setBackgroundColor(Color.parseColor("#99000000"))
+//        }
+//
+//        val card = LinearLayout(this).apply {
+//            orientation = LinearLayout.VERTICAL
+//            setPadding(dp(20), dp(20), dp(20), dp(20))
+//            layoutParams = FrameLayout.LayoutParams(-1, -2).apply {
+//                gravity = Gravity.CENTER
+//                setMargins(dp(24), 0, dp(24), 0)
+//            }
+//            background = GradientDrawable().apply {
+//                setColor(Color.WHITE)
+//                cornerRadius = dp(28).toFloat()
+//            }
+//            elevation = dp(16).toFloat()
+//        }
+//
+//        // Amount
+//        card.addView(TextView(this).apply {
+//            text = "₹$amount"; textSize = 34f; setTypeface(null, Typeface.BOLD)
+//            setTextColor(Color.parseColor("#1A237E")); gravity = Gravity.CENTER
+//        })
+//
+//        // Pickup Distance Badge
+//        card.addView(TextView(this).apply {
+//            text = "● Pickup $pickupDistanceKm km away"; textSize = 14f; setTextColor(Color.parseColor("#2E7D32"))
+//            setPadding(dp(14), dp(6), dp(14), dp(6)); gravity = Gravity.CENTER
+//            background = GradientDrawable().apply { setColor(Color.parseColor("#F5F5F5")); cornerRadius = dp(20).toFloat() }
+//            layoutParams = LinearLayout.LayoutParams(-2, -2).apply { gravity = Gravity.CENTER; topMargin = dp(8) }
+//        })
+//
+//        // Ride Distance if available
+//        if (rideDistance.isNotEmpty() && rideDistance != "0.0") {
+//            card.addView(TextView(this).apply {
+//                text = "User Travelling distance: $rideDistance km"; textSize = 14f; setTypeface(null, Typeface.BOLD)
+//                setTextColor(Color.parseColor("#424242")); gravity = Gravity.CENTER
+//                layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) }
+//            })
+//        }
+//
+//        card.addView(spacer(dp(24)))
+//
+//        // Pickup/Drop section with indicators
+//        val locationContainer = LinearLayout(this).apply {
+//            orientation = LinearLayout.HORIZONTAL
+//            layoutParams = LinearLayout.LayoutParams(-1, -2)
+//        }
+//
+//        val indicatorColumn = LinearLayout(this).apply {
+//            orientation = LinearLayout.VERTICAL
+//            gravity = Gravity.CENTER_HORIZONTAL
+//            layoutParams = LinearLayout.LayoutParams(dp(20), -2).apply { topMargin = dp(6) }
+//        }
+//
+//        val greenCircle = View(this).apply {
+//            layoutParams = LinearLayout.LayoutParams(dp(10), dp(10))
+//            background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Color.parseColor("#4CAF50")) }
+//        }
+//        val line = View(this).apply {
+//            layoutParams = LinearLayout.LayoutParams(dp(2), dp(48))
+//            background = GradientDrawable().apply { setColor(Color.LTGRAY) }
+//        }
+//        val redCircle = View(this).apply {
+//            layoutParams = LinearLayout.LayoutParams(dp(10), dp(10))
+//            background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Color.parseColor("#F44336")) }
+//        }
+//        indicatorColumn.addView(greenCircle); indicatorColumn.addView(line); indicatorColumn.addView(redCircle)
+//
+//        val addressColumn = LinearLayout(this).apply {
+//            orientation = LinearLayout.VERTICAL
+//            layoutParams = LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(12) }
+//        }
+//
+//        addressColumn.addView(TextView(this).apply {
+//            text = pickupAddress; setTextColor(Color.BLACK); textSize = 14f; maxLines = 2; setTypeface(null, Typeface.BOLD)
+//        })
+//        addressColumn.addView(TextView(this).apply {
+//            text = dropAddress; setTextColor(Color.parseColor("#616161")); textSize = 14f; maxLines = 2; setTypeface(null, Typeface.BOLD)
+//            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(32) }
+//        })
+//
+//        locationContainer.addView(indicatorColumn); locationContainer.addView(addressColumn)
+//        card.addView(locationContainer)
+//
+//        card.addView(spacer(dp(30)))
+//
+//        // SLIDER (Royal Blue)
+//        val slideContainer = FrameLayout(this).apply {
+//            layoutParams = LinearLayout.LayoutParams(-1, dp(64))
+//            background = GradientDrawable().apply {
+//                setColor(Color.parseColor("#4169E1"))
+//                cornerRadius = dp(32).toFloat()
+//            }
+//        }
+//
+//        val slideText = TextView(this).apply {
+//            text = "Agree for ₹$amount"; gravity = Gravity.CENTER; setTextColor(Color.WHITE); textSize = 17f; setTypeface(null, Typeface.BOLD)
+//        }
+//
+//        val knob = FrameLayout(this).apply {
+//            layoutParams = FrameLayout.LayoutParams(dp(56), dp(56)).apply { gravity = Gravity.START or Gravity.CENTER_VERTICAL; leftMargin = dp(4) }
+//            background = GradientDrawable().apply { setColor(Color.WHITE); shape = GradientDrawable.OVAL }
+//            addView(ImageView(this@IncomingOrderLockScreenActivity).apply {
+//                setImageResource(android.R.drawable.ic_media_play); setColorFilter(Color.parseColor("#4169E1"))
+//                layoutParams = FrameLayout.LayoutParams(dp(24), dp(24), Gravity.CENTER)
+//            })
+//        }
+//
+//        slideContainer.addView(slideText); slideContainer.addView(knob)
+//
+//        knob.setOnTouchListener(object : View.OnTouchListener {
+//            private var dX = 0f
+//            override fun onTouch(v: View, event: MotionEvent): Boolean {
+//                val maxSlide = slideContainer.width - v.width - dp(8)
+//                when (event.action) {
+//                    MotionEvent.ACTION_DOWN -> dX = v.x - event.rawX
+//                    MotionEvent.ACTION_MOVE -> {
+//                        var newX = event.rawX + dX
+//                        v.x = newX.coerceIn(dp(4).toFloat(), maxSlide.toFloat())
+//                    }
+//                    MotionEvent.ACTION_UP -> {
+//                        if (v.x > maxSlide * 0.8) {
+//                            v.x = maxSlide.toFloat()
+//                            handleAccept(orderId, userId, pickupAddress, dropAddress, pickupDistanceKm, rideDistance, amount, panel)
+//                        } else {
+//                            v.animate().x(dp(4).toFloat()).setDuration(200).start()
+//                        }
+//                    }
+//                }
+//                return true
+//            }
+//        })
+//        card.addView(slideContainer)
+//
+//        // Ignore Order
+//        card.addView(TextView(this).apply {
+//            text = "Ignore Order"; textSize = 15f; setTextColor(Color.GRAY); gravity = Gravity.CENTER
+//            setPadding(dp(16), dp(12), dp(16), dp(12)); setOnClickListener {
+//            launchMain(orderId, userId, pickupAddress, dropAddress, pickupDistanceKm, rideDistance, amount, panel, isIgnore = true)
+//        }
+//        })
+//
+//        root.addView(card)
+//        setContentView(root)
+//    }
+//
+//    private fun handleAccept(orderId: String, userId: String, pickup: String, drop: String, dist: String, rideDist: String, amt: String, panel: String) {
+//        val km = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+//            km.requestDismissKeyguard(this, object : KeyguardManager.KeyguardDismissCallback() {
+//                override fun onDismissSucceeded() {
+//                    Log.d(tag, "Keyguard dismiss succeeded")
+//                    Handler(Looper.getMainLooper()).postDelayed({
+//                        launchMain(orderId, userId, pickup, drop, dist, rideDist, amt, panel, isIgnore = false)
+//                    }, 200)
+//                }
+//                override fun onDismissCancelled() {
+//                    Log.d(tag, "Keyguard dismiss cancelled")
+//                    finish()
+//                }
+//                override fun onDismissError() {
+//                    Log.d(tag, "Keyguard dismiss error")
+//                    launchMain(orderId, userId, pickup, drop, dist, rideDist, amt, panel, isIgnore = false)
+//                }
+//            })
+//        } else {
+//            launchMain(orderId, userId, pickup, drop, dist, rideDist, amt, panel, isIgnore = false)
+//        }
+//    }
+//
+//    private fun launchMain(orderId: String, userId: String, pickup: String, drop: String, dist: String, rideDist: String, amt: String, panel: String, isIgnore: Boolean) {
+//        val mainIntent = Intent(this, MainActivity::class.java).apply {
+//            addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+//            putExtra(RapidoIncomingOrderOverlayService.EXTRA_NAV_ROUTE,
+//                if (isIgnore) RapidoIncomingOrderOverlayService.ROUTE_IGNORE_RIDE
+//                else RapidoIncomingOrderOverlayService.ROUTE_ACCEPT_RIDE)
+//            putExtra(RapidoIncomingOrderOverlayService.EXTRA_ORDER_ID, orderId)
+//            putExtra("user_id", userId)
+//            putExtra("pickup_address", pickup); putExtra("drop_address", drop)
+//            putExtra("distance", dist); putExtra("distance_km", rideDist)
+//            putExtra("amount", amt); putExtra("panel", panel)
+//        }
+//        startActivity(mainIntent)
+//        IncomingOrderFirebaseService.stopIncomingOrderAlert(this)
+//        finish()
+//    }
+//
+//    private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
+//    private fun spacer(h: Int) = View(this).apply { layoutParams = LinearLayout.LayoutParams(-1, h) }
+//
+//    override fun onDestroy() {
+//        try { removeReceiver?.let { unregisterReceiver(it) } } catch (_: Throwable) {}
+//        super.onDestroy()
+//    }
+//}
+
+package com.fc.mishtry_partner
+
+import android.annotation.SuppressLint
+import android.app.Activity
+import android.app.KeyguardManager
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.graphics.Color
+import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
+import android.os.Build
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
+import android.view.Gravity
+import android.view.MotionEvent
+import android.view.View
+import android.view.WindowManager
+import android.widget.FrameLayout
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.TextView
+
+class IncomingOrderLockScreenActivity : Activity() {
+    private val tag = "LockScreenActivity"
+    private var removeReceiver: BroadcastReceiver? = null
+
+    @SuppressLint("ClickableViewAccessibility")
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        // ✅ FIX: Sabse pehle window flags set karo - DISMISS_KEYGUARD bhi add kiya
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+        } else {
+            @Suppress("DEPRECATION")
+            window.addFlags(
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                        WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+                        WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
+                        WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
+            )
+        }
+
+        // ✅ FIX: Keyguard dismiss karo - lock screen pe bina PIN ke dikhao
+        val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            keyguardManager.requestDismissKeyguard(this, object : KeyguardManager.KeyguardDismissCallback() {
+                override fun onDismissSucceeded() {
+                    Log.d(tag, "Keyguard auto-dismissed on create")
+                }
+                override fun onDismissCancelled() {
+                    Log.d(tag, "Keyguard dismiss cancelled - showing over lock screen")
+                }
+                override fun onDismissError() {
+                    Log.d(tag, "Keyguard dismiss error - showing over lock screen")
+                }
+            })
+        }
+
+        // ✅ Broadcast receiver - jab order cancel ho to activity finish ho
+        removeReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                Log.d(tag, "Received remove UI broadcast - finishing activity")
+                finish()
+            }
+        }
+
+        val filter = IntentFilter(IncomingOrderFirebaseService.ACTION_REMOVE_INCOMING_ORDER_UI)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(removeReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("UnspecifiedRegisterReceiverFlag")
+            registerReceiver(removeReceiver, filter)
+        }
+
+        IncomingOrderNotification.cancel(this)
+
+        // Intent se data lo
+        // ✅ FIX: "order_id" key use karo (FCM service same key se bhejta hai)
+        val orderId = intent.getStringExtra("order_id")
+            ?: intent.getStringExtra(RapidoIncomingOrderOverlayService.EXTRA_ORDER_ID)
+            ?: ""
+        val userId = intent.getStringExtra("user_id") ?: ""
+        val pickupAddress = intent.getStringExtra("pickup_address") ?: "N/A"
+        val dropAddress = intent.getStringExtra("drop_address") ?: "N/A"
+        val pickupDistanceKm = intent.getStringExtra("pickup_distance_km") ?: "N/A"
+        val rideDistance = intent.getStringExtra("distance_km") ?: "0.0"
+        val amount = intent.getStringExtra("amount") ?: ""
+        val panel = intent.getStringExtra("panel") ?: "driver"
+
+        Log.d(tag, "LockScreen showing: OrderId=$orderId Amount=$amount Panel=$panel")
+
+        // ===== UI BUILD =====
+        val root = FrameLayout(this).apply {
+            setBackgroundColor(Color.parseColor("#CC000000"))
+        }
+
+        val card = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(20), dp(20), dp(20))
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                gravity = Gravity.CENTER
+                setMargins(dp(24), 0, dp(24), 0)
+            }
+            background = GradientDrawable().apply {
+                setColor(Color.WHITE)
+                cornerRadius = dp(28).toFloat()
+            }
+            elevation = dp(16).toFloat()
+        }
+
+        // Amount
+        card.addView(TextView(this).apply {
+            text = "₹$amount"
+            textSize = 34f
+            setTypeface(null, Typeface.BOLD)
+            setTextColor(Color.parseColor("#1A237E"))
+            gravity = Gravity.CENTER
+            layoutParams = LinearLayout.LayoutParams(-1, -2).apply {
+                bottomMargin = dp(8)
+            }
+        })
+
+        // Pickup Distance Badge
+        card.addView(TextView(this).apply {
+            text = "● Pickup $pickupDistanceKm km away"
+            textSize = 14f
+            setTextColor(Color.parseColor("#2E7D32"))
+            setPadding(dp(14), dp(6), dp(14), dp(6))
+            gravity = Gravity.CENTER
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#F5F5F5"))
+                cornerRadius = dp(20).toFloat()
+            }
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                gravity = Gravity.CENTER_HORIZONTAL
+                topMargin = dp(4)
+                bottomMargin = dp(4)
+            }
+        })
+
+        // Ride Distance
+        if (rideDistance.isNotEmpty() && rideDistance != "0.0") {
+            card.addView(TextView(this).apply {
+                text = "User Travelling distance: $rideDistance km"
+                textSize = 14f
+                setTypeface(null, Typeface.BOLD)
+                setTextColor(Color.parseColor("#424242"))
+                gravity = Gravity.CENTER
+                layoutParams = LinearLayout.LayoutParams(-1, -2).apply {
+                    topMargin = dp(8)
+                }
+            })
+        }
+
+        card.addView(spacer(dp(20)))
+
+        // Pickup/Drop section
+        val locationContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutParams = LinearLayout.LayoutParams(-1, -2)
+        }
+
+        val indicatorColumn = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            layoutParams = LinearLayout.LayoutParams(dp(20), -2).apply { topMargin = dp(6) }
+        }
+
+        val greenCircle = View(this).apply {
+            layoutParams = LinearLayout.LayoutParams(dp(10), dp(10))
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.parseColor("#4CAF50"))
+            }
+        }
+        val line = View(this).apply {
+            layoutParams = LinearLayout.LayoutParams(dp(2), dp(48))
+            background = GradientDrawable().apply { setColor(Color.LTGRAY) }
+        }
+        val redCircle = View(this).apply {
+            layoutParams = LinearLayout.LayoutParams(dp(10), dp(10))
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.parseColor("#F44336"))
+            }
+        }
+        indicatorColumn.addView(greenCircle)
+        indicatorColumn.addView(line)
+        indicatorColumn.addView(redCircle)
+
+        val addressColumn = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(12) }
+        }
+
+        addressColumn.addView(TextView(this).apply {
+            text = pickupAddress
+            setTextColor(Color.BLACK)
+            textSize = 14f
+            maxLines = 2
+            setTypeface(null, Typeface.BOLD)
+        })
+        addressColumn.addView(TextView(this).apply {
+            text = dropAddress
+            setTextColor(Color.parseColor("#616161"))
+            textSize = 14f
+            maxLines = 2
+            setTypeface(null, Typeface.BOLD)
+            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(32) }
+        })
+
+        locationContainer.addView(indicatorColumn)
+        locationContainer.addView(addressColumn)
+        card.addView(locationContainer)
+
+        card.addView(spacer(dp(28)))
+
+        // ===== SLIDER (Swipe to Accept) =====
+        val slideContainer = FrameLayout(this).apply {
+            layoutParams = LinearLayout.LayoutParams(-1, dp(64))
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#4169E1"))
+                cornerRadius = dp(32).toFloat()
+            }
+        }
+
+        val slideText = TextView(this).apply {
+            text = "Slide to Accept ₹$amount"
+            gravity = Gravity.CENTER
+            setTextColor(Color.WHITE)
+            textSize = 16f
+            setTypeface(null, Typeface.BOLD)
+            setPadding(dp(70), 0, dp(16), 0)
+        }
+
+        val knob = FrameLayout(this).apply {
+            layoutParams = FrameLayout.LayoutParams(dp(56), dp(56)).apply {
+                gravity = Gravity.START or Gravity.CENTER_VERTICAL
+                leftMargin = dp(4)
+            }
+            background = GradientDrawable().apply {
+                setColor(Color.WHITE)
+                shape = GradientDrawable.OVAL
+            }
+            addView(ImageView(this@IncomingOrderLockScreenActivity).apply {
+                setImageResource(android.R.drawable.ic_media_play)
+                setColorFilter(Color.parseColor("#4169E1"))
+                layoutParams = FrameLayout.LayoutParams(dp(24), dp(24), Gravity.CENTER)
+            })
+        }
+
+        slideContainer.addView(slideText)
+        slideContainer.addView(knob)
+
+        knob.setOnTouchListener(object : View.OnTouchListener {
+            private var dX = 0f
+            override fun onTouch(v: View, event: MotionEvent): Boolean {
+                val maxSlide = slideContainer.width - v.width - dp(8)
+                when (event.action) {
+                    MotionEvent.ACTION_DOWN -> dX = v.x - event.rawX
+                    MotionEvent.ACTION_MOVE -> {
+                        val newX = event.rawX + dX
+                        v.x = newX.coerceIn(dp(4).toFloat(), maxSlide.toFloat())
+                    }
+                    MotionEvent.ACTION_UP -> {
+                        if (v.x > maxSlide * 0.8f) {
+                            v.x = maxSlide.toFloat()
+                            handleAccept(orderId, userId, pickupAddress, dropAddress,
+                                pickupDistanceKm, rideDistance, amount, panel)
+                        } else {
+                            v.animate().x(dp(4).toFloat()).setDuration(200).start()
+                        }
+                    }
+                }
+                return true
+            }
+        })
+
+        card.addView(slideContainer)
+
+        // Ignore button
+        card.addView(TextView(this).apply {
+            text = "Ignore Order"
+            textSize = 15f
+            setTextColor(Color.GRAY)
+            gravity = Gravity.CENTER
+            setPadding(dp(16), dp(14), dp(16), dp(14))
+            setOnClickListener {
+                launchMain(orderId, userId, pickupAddress, dropAddress,
+                    pickupDistanceKm, rideDistance, amount, panel, isIgnore = true)
+            }
+        })
+
+        root.addView(card)
+        setContentView(root)
+    }
+
+    private fun handleAccept(
+        orderId: String, userId: String, pickup: String, drop: String,
+        dist: String, rideDist: String, amt: String, panel: String
+    ) {
+        val km = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            km.requestDismissKeyguard(this, object : KeyguardManager.KeyguardDismissCallback() {
+                override fun onDismissSucceeded() {
+                    Log.d(tag, "Keyguard dismiss succeeded")
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        launchMain(orderId, userId, pickup, drop, dist, rideDist, amt, panel, false)
+                    }, 200)
+                }
+                override fun onDismissCancelled() {
+                    Log.d(tag, "Keyguard dismiss cancelled")
+                    // ✅ FIX: Cancel pe bhi launch karo - show over lock screen
+                    launchMain(orderId, userId, pickup, drop, dist, rideDist, amt, panel, false)
+                }
+                override fun onDismissError() {
+                    Log.d(tag, "Keyguard dismiss error")
+                    launchMain(orderId, userId, pickup, drop, dist, rideDist, amt, panel, false)
+                }
+            })
+        } else {
+            launchMain(orderId, userId, pickup, drop, dist, rideDist, amt, panel, false)
+        }
+    }
+
+    private fun launchMain(
+        orderId: String, userId: String, pickup: String, drop: String,
+        dist: String, rideDist: String, amt: String, panel: String, isIgnore: Boolean
+    ) {
+        val mainIntent = Intent(this, MainActivity::class.java).apply {
+            addFlags(
+                Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                        Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+            )
+            putExtra(
+                RapidoIncomingOrderOverlayService.EXTRA_NAV_ROUTE,
+                if (isIgnore) RapidoIncomingOrderOverlayService.ROUTE_IGNORE_RIDE
+                else RapidoIncomingOrderOverlayService.ROUTE_ACCEPT_RIDE
+            )
+            putExtra(RapidoIncomingOrderOverlayService.EXTRA_ORDER_ID, orderId)
+            putExtra("user_id", userId)
+            putExtra("pickup_address", pickup)
+            putExtra("drop_address", drop)
+            putExtra("distance", dist)
+            putExtra("distance_km", rideDist)
+            putExtra("amount", amt)
+            putExtra("panel", panel)
+        }
+        startActivity(mainIntent)
+        IncomingOrderFirebaseService.stopIncomingOrderAlert(this)
+        finish()
+    }
+
+    private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
+    private fun spacer(h: Int) = View(this).apply {
+        layoutParams = LinearLayout.LayoutParams(-1, h)
+    }
+
+    override fun onDestroy() {
+        try {
+            removeReceiver?.let { unregisterReceiver(it) }
+        } catch (_: Throwable) {}
+        super.onDestroy()
+    }
+
+    // ✅ Back press pe finish nahi hoga - order ignore nahi hoga accidentally
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        // Do nothing - intentional
+    }
+}
