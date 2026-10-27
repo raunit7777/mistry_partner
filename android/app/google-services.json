@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "860855262046",
+    "project_id": "mishtrymain",
+    "storage_bucket": "mishtrymain.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:860855262046:android:82c1bda3bf69743d44cdcf",
+        "android_client_info": {
+          "package_name": "com.fc.mishtry_partner"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAxbJbIH8cH5eWYTrt6s57Fuu7ieP1iI3I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
